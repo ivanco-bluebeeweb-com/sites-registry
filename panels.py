@@ -97,6 +97,7 @@ async def sites_panel(ctx, platform: str = "none", **kwargs) -> object:
 
     root = ui.Stack(direction="v", gap=3, children=[
         _add_site_form(platform),
+        _sync_button(),
         ui.Divider(),
         list_section,
     ])

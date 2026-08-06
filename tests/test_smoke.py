@@ -12,7 +12,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from imperal_sdk.testing import MockContext
 
 import handlers as h
-from schemas import AddSiteParams, ListSitesParams, UpdateSiteParams, RemoveSiteParams
+from schemas import (
+    AddSiteParams, ListSitesParams, UpdateSiteParams, RemoveSiteParams,
+    SyncConnectedSitesParams,
+)
 
 
 @pytest.mark.asyncio
@@ -162,3 +165,64 @@ async def test_upsert_site_ipc_updates_existing_record_status():
     matches = [s for s in listed.data.items if s.domain == "pushed.com"]
     assert len(matches) == 1
     assert matches[0].status == "disconnected"
+
+
+@pytest.mark.asyncio
+async def test_sync_connected_sites_backfills_sites_that_predate_the_registry():
+    """The exact bug this was built to fix: sites connected in WordPress Hub
+    BEFORE Sites Registry existed never got an upsert_site push (no receiver
+    existed yet) -- sync_connected_sites must pull them in directly."""
+    ctx = MockContext()
+    ctx.extensions.register(
+        "wp-site-connector", "list_connected_sites",
+        lambda **kw: [
+            {"site_id": "climtec-md", "name": "climtec.md", "url": "https://climtec.md", "status": "connected"},
+            {"site_id": "g4s-md", "name": "g4s.md", "url": "https://g4s.md", "status": "connected"},
+        ],
+    )
+    result = await h.sync_connected_sites(ctx, SyncConnectedSitesParams(source="wordpress"))
+    assert result.status == "success"
+    assert len(result.data.items) == 2
+    listed = await h.list_sites(ctx, ListSitesParams())
+    domains = {s.domain for s in listed.data.items}
+    assert domains == {"climtec.md", "g4s.md"}
+    for s in listed.data.items:
+        assert s.platform == "wordpress"
+        assert s.connector_app == "wp-site-connector"
+        assert s.status == "connected"
+
+
+@pytest.mark.asyncio
+async def test_sync_connected_sites_updates_existing_record_without_duplicating():
+    ctx = MockContext()
+    created = await h.add_site(ctx, AddSiteParams(domain="climtec.md", name="My manual entry", notes="keep me"))
+    ctx.extensions.register(
+        "wp-site-connector", "list_connected_sites",
+        lambda **kw: [{"site_id": "climtec-md", "name": "climtec.md", "url": "https://climtec.md", "status": "connected"}],
+    )
+    await h.sync_connected_sites(ctx, SyncConnectedSitesParams(source="wordpress"))
+    listed = await h.list_sites(ctx, ListSitesParams())
+    matches = [s for s in listed.data.items if s.domain == "climtec.md"]
+    assert len(matches) == 1  # no duplicate row
+    assert matches[0].id == created.data.id  # same record, just patched
+    assert matches[0].platform == "wordpress"
+    assert matches[0].connector_ref == "climtec-md"
+
+
+@pytest.mark.asyncio
+async def test_sync_connected_sites_rejects_unknown_source():
+    ctx = MockContext()
+    result = await h.sync_connected_sites(ctx, SyncConnectedSitesParams(source="bogus"))
+    assert result.status != "success"
+
+
+@pytest.mark.asyncio
+async def test_sync_connected_sites_surfaces_ipc_failure():
+    ctx = MockContext()
+
+    def _boom(**kw):
+        raise RuntimeError("wp-site-connector unreachable")
+
+    ctx.extensions.register("wp-site-connector", "list_connected_sites", _boom)
+    result = await h.sync_connected_sites(ctx, SyncConnectedSitesParams(source="wordpress"))
+    assert result.status != "success"

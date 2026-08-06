@@ -208,6 +208,189 @@
       "owner_chat_tool": "sites-registry"
     },
     {
+      "name": "sync_connected_sites",
+      "description": "Pull sites that are ALREADY connected in a platform connector (WordPress Hub today) into the registry. Fixes sites connected before Sites Registry existed, or any time the two drift out of sync -- safe to run any time, matches by domain, fills in platform/connector info, never touches notes.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "site.sync"
+      ],
+      "id_projection": "",
+      "params_schema": {
+        "properties": {
+          "source": {
+            "default": "wordpress",
+            "description": "Which connector to pull already-connected sites from. Only 'wordpress' exists today.",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "title": "SyncConnectedSitesParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "$defs": {
+          "Site": {
+            "description": "One registered site. `connector_app`/`connector_ref` are set only\nwhen a real connector extension (e.g. wp-site-connector) is actually\ndriving this site; a manually-added site with platform=\"none\" or a\nnot-yet-connected platform choice leaves both blank.",
+            "properties": {
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "kind": {
+                "default": "",
+                "title": "Kind",
+                "type": "string"
+              },
+              "subtitle": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Subtitle"
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Description"
+              },
+              "status": {
+                "default": "manual",
+                "title": "Status",
+                "type": "string"
+              },
+              "url": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Url"
+              },
+              "domain": {
+                "default": "",
+                "title": "Domain",
+                "type": "string"
+              },
+              "platform": {
+                "default": "none",
+                "title": "Platform",
+                "type": "string"
+              },
+              "connector_app": {
+                "default": "",
+                "title": "Connector App",
+                "type": "string"
+              },
+              "connector_ref": {
+                "default": "",
+                "title": "Connector Ref",
+                "type": "string"
+              },
+              "notes": {
+                "default": "",
+                "title": "Notes",
+                "type": "string"
+              },
+              "created_at": {
+                "default": "",
+                "title": "Created At",
+                "type": "string"
+              },
+              "updated_at": {
+                "default": "",
+                "title": "Updated At",
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "title"
+            ],
+            "title": "Site",
+            "type": "object",
+            "x-sdl": "entity"
+          }
+        },
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/$defs/Site"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Total"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Page"
+          },
+          "has_more": {
+            "default": false,
+            "title": "Has More",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "SiteList",
+        "type": "object",
+        "x-sdl": "entity-list"
+      },
+      "event": "sites-registry.sync_connected_sites",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "sites-registry"
+    },
+    {
       "name": "list_sites",
       "description": "List every registered site, optionally filtered by platform or status.",
       "action_type": "read",

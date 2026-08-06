@@ -7,7 +7,7 @@ from imperal_sdk import ActionResult
 
 from schemas import (
     Site, SiteList, AddSiteParams, ListSitesParams, UpdateSiteParams,
-    RemoveSiteParams, PLATFORM_CHOICES,
+    RemoveSiteParams, PLATFORM_CHOICES, SyncConnectedSitesParams,
 )
 from converters import now_iso, normalize_domain, site_id_from_domain, to_site
 import storage
@@ -88,6 +88,69 @@ async def add_site(ctx, params: AddSiteParams) -> ActionResult:
     site = to_site(record | {"id": doc.id})
     return ActionResult.success(
         site, summary=f"Registered '{domain}'" + (" and connected it in WordPress Hub" if status == "connected" else ""),
+        refresh_panels=["sites"])
+
+
+@chat.function(
+    "sync_connected_sites",
+    description=(
+        "Pull sites that are ALREADY connected in a platform connector (WordPress Hub today) into "
+        "the registry. Fixes sites connected before Sites Registry existed, or any time the two "
+        "drift out of sync -- safe to run any time, matches by domain, fills in platform/connector "
+        "info, never touches notes."
+    ),
+    action_type="write",
+    data_model=SiteList,
+    effects=["site.sync"],
+    event="sites-registry.sync_connected_sites",
+)
+async def sync_connected_sites(ctx, params: SyncConnectedSitesParams) -> ActionResult:
+    """Backfill/refresh registry entries from an already-connected platform connector."""
+    source = params.source or "wordpress"
+    if source not in _PLATFORM_CONNECT_IPC:
+        return ActionResult.error(
+            f"Unknown source '{source}'. Known: {', '.join(_PLATFORM_CONNECT_IPC)}", retryable=False)
+    target_app, _connect_method = _PLATFORM_CONNECT_IPC[source]
+
+    try:
+        rows = await ctx.extensions.call(target_app, "list_connected_sites")
+    except Exception as e:
+        await ctx.log(f"sync_connected_sites: IPC call to {target_app} failed: {e}", level="error")
+        return ActionResult.error(
+            f"Could not reach {target_app} to read its connected sites -- try again shortly.",
+            retryable=True)
+
+    now = now_iso()
+    synced: list[Site] = []
+    for row in (rows or []):
+        raw = row.get("name") or row.get("url") or row.get("site_id", "")
+        domain = normalize_domain(raw)
+        if not domain:
+            continue
+        connector_ref = row.get("site_id", "")
+        status = row.get("status", "connected")
+
+        existing = await storage._find_by_domain(ctx, domain)
+        if existing is not None:
+            patch = {
+                "platform": source, "connector_app": target_app,
+                "connector_ref": connector_ref, "status": status, "updated_at": now,
+            }
+            await ctx.store.update(storage.SITES_COLLECTION, existing.id, patch)
+            merged = existing.data | patch
+            synced.append(to_site(merged | {"id": existing.id}))
+        else:
+            record = {
+                "domain": domain, "name": row.get("name") or domain, "platform": source,
+                "connector_app": target_app, "connector_ref": connector_ref,
+                "status": status, "notes": "", "created_at": now, "updated_at": now,
+            }
+            doc = await ctx.store.create(storage.SITES_COLLECTION, record)
+            synced.append(to_site(record | {"id": doc.id}))
+
+    return ActionResult.success(
+        SiteList(items=synced, total=len(synced)),
+        summary=f"Synced {len(synced)} site(s) from {target_app}.",
         refresh_panels=["sites"])
 
 

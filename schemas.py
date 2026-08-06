@@ -72,3 +72,10 @@ class UpsertSiteIPCResult(BaseModel):
     """Return shape for the upsert_site IPC surface -- not user-facing."""
     ok: bool = True
     site_id: str = ""
+
+
+class SyncConnectedSitesParams(BaseModel):
+    source: str = Field(
+        default="wordpress",
+        description="Which connector to pull already-connected sites from. Only 'wordpress' exists today.",
+    )
