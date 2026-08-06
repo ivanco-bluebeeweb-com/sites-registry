@@ -1,0 +1,762 @@
+{
+  "manifest_schema_version": 3,
+  "sdk_version": "5.9.13",
+  "app_id": "sites-registry",
+  "version": "0.1.0",
+  "name": "Sites Registry",
+  "description": "A single platform-agnostic catalogue of every site you manage -- domain, name, and platform (WordPress, Shopify, other, or none yet). Add a WordPress site here and it connects live in WordPress Hub in the same step; connect one directly in WordPress Hub and it appears here automatically. One list for sites on any platform, or no platform at all.",
+  "icon": "icon.svg",
+  "actions_explicit": true,
+  "system": false,
+  "capabilities": [
+    "sites:read",
+    "sites:write"
+  ],
+  "tools": [
+    {
+      "name": "add_site",
+      "description": "Register a site in the platform-agnostic Sites Registry. Works for any platform, or none at all. Choosing platform='wordpress' AND supplying url/username/app_password connects it live in WordPress Hub in this same call -- not a separate step.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "site.create"
+      ],
+      "id_projection": "",
+      "params_schema": {
+        "properties": {
+          "domain": {
+            "description": "Bare domain, e.g. 'example.com' (scheme/path stripped automatically)",
+            "title": "Domain",
+            "type": "string"
+          },
+          "name": {
+            "default": "",
+            "description": "Display name; defaults to the domain if left blank",
+            "title": "Name",
+            "type": "string"
+          },
+          "platform": {
+            "default": "none",
+            "description": "One of: wordpress, shopify, none, other. 'wordpress' with url/username/app_password provided also connects it live in WordPress Hub in the same call.",
+            "title": "Platform",
+            "type": "string"
+          },
+          "notes": {
+            "default": "",
+            "description": "Optional free-text note about this site",
+            "title": "Notes",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Required for platform='wordpress': full https:// site URL",
+            "title": "Url"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Required for platform='wordpress': WP username",
+            "title": "Username"
+          },
+          "app_password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Required for platform='wordpress': WP Application Password",
+            "title": "App Password"
+          }
+        },
+        "required": [
+          "domain"
+        ],
+        "title": "AddSiteParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "description": "One registered site. `connector_app`/`connector_ref` are set only\nwhen a real connector extension (e.g. wp-site-connector) is actually\ndriving this site; a manually-added site with platform=\"none\" or a\nnot-yet-connected platform choice leaves both blank.",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "default": "manual",
+            "title": "Status",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "domain": {
+            "default": "",
+            "title": "Domain",
+            "type": "string"
+          },
+          "platform": {
+            "default": "none",
+            "title": "Platform",
+            "type": "string"
+          },
+          "connector_app": {
+            "default": "",
+            "title": "Connector App",
+            "type": "string"
+          },
+          "connector_ref": {
+            "default": "",
+            "title": "Connector Ref",
+            "type": "string"
+          },
+          "notes": {
+            "default": "",
+            "title": "Notes",
+            "type": "string"
+          },
+          "created_at": {
+            "default": "",
+            "title": "Created At",
+            "type": "string"
+          },
+          "updated_at": {
+            "default": "",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "Site",
+        "type": "object",
+        "x-sdl": "entity"
+      },
+      "event": "sites-registry.add_site",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "sites-registry"
+    },
+    {
+      "name": "list_sites",
+      "description": "List every registered site, optionally filtered by platform or status.",
+      "action_type": "read",
+      "chain_callable": true,
+      "effects": [],
+      "id_projection": "",
+      "params_schema": {
+        "properties": {
+          "platform": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Filter by platform: wordpress, shopify, none, other",
+            "title": "Platform"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Filter by status: manual, connected, pending, disconnected",
+            "title": "Status"
+          },
+          "limit": {
+            "default": 50,
+            "description": "Max items to return, 1-100",
+            "maximum": 100,
+            "minimum": 1,
+            "title": "Limit",
+            "type": "integer"
+          }
+        },
+        "title": "ListSitesParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "$defs": {
+          "Site": {
+            "description": "One registered site. `connector_app`/`connector_ref` are set only\nwhen a real connector extension (e.g. wp-site-connector) is actually\ndriving this site; a manually-added site with platform=\"none\" or a\nnot-yet-connected platform choice leaves both blank.",
+            "properties": {
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "kind": {
+                "default": "",
+                "title": "Kind",
+                "type": "string"
+              },
+              "subtitle": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Subtitle"
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Description"
+              },
+              "status": {
+                "default": "manual",
+                "title": "Status",
+                "type": "string"
+              },
+              "url": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Url"
+              },
+              "domain": {
+                "default": "",
+                "title": "Domain",
+                "type": "string"
+              },
+              "platform": {
+                "default": "none",
+                "title": "Platform",
+                "type": "string"
+              },
+              "connector_app": {
+                "default": "",
+                "title": "Connector App",
+                "type": "string"
+              },
+              "connector_ref": {
+                "default": "",
+                "title": "Connector Ref",
+                "type": "string"
+              },
+              "notes": {
+                "default": "",
+                "title": "Notes",
+                "type": "string"
+              },
+              "created_at": {
+                "default": "",
+                "title": "Created At",
+                "type": "string"
+              },
+              "updated_at": {
+                "default": "",
+                "title": "Updated At",
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "title"
+            ],
+            "title": "Site",
+            "type": "object",
+            "x-sdl": "entity"
+          }
+        },
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/$defs/Site"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Total"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Page"
+          },
+          "has_more": {
+            "default": false,
+            "title": "Has More",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "SiteList",
+        "type": "object",
+        "x-sdl": "entity-list"
+      },
+      "event": "",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "sites-registry"
+    },
+    {
+      "name": "update_site",
+      "description": "Update a registered site's name, notes, and/or status.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "site.update"
+      ],
+      "id_projection": "",
+      "params_schema": {
+        "properties": {
+          "site_id": {
+            "description": "Site id from a previous list_sites/add_site call",
+            "title": "Site Id",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "New display name",
+            "title": "Name"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "New notes text",
+            "title": "Notes"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "New status: manual, connected, pending, disconnected",
+            "title": "Status"
+          }
+        },
+        "required": [
+          "site_id"
+        ],
+        "title": "UpdateSiteParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "description": "One registered site. `connector_app`/`connector_ref` are set only\nwhen a real connector extension (e.g. wp-site-connector) is actually\ndriving this site; a manually-added site with platform=\"none\" or a\nnot-yet-connected platform choice leaves both blank.",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "default": "manual",
+            "title": "Status",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "domain": {
+            "default": "",
+            "title": "Domain",
+            "type": "string"
+          },
+          "platform": {
+            "default": "none",
+            "title": "Platform",
+            "type": "string"
+          },
+          "connector_app": {
+            "default": "",
+            "title": "Connector App",
+            "type": "string"
+          },
+          "connector_ref": {
+            "default": "",
+            "title": "Connector Ref",
+            "type": "string"
+          },
+          "notes": {
+            "default": "",
+            "title": "Notes",
+            "type": "string"
+          },
+          "created_at": {
+            "default": "",
+            "title": "Created At",
+            "type": "string"
+          },
+          "updated_at": {
+            "default": "",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "Site",
+        "type": "object",
+        "x-sdl": "entity"
+      },
+      "event": "sites-registry.update_site",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "sites-registry"
+    },
+    {
+      "name": "remove_site",
+      "description": "Remove a site from the registry. Does NOT disconnect it from WordPress Hub or any other connector -- it only removes this catalogue entry.",
+      "action_type": "destructive",
+      "chain_callable": true,
+      "effects": [
+        "site.delete"
+      ],
+      "id_projection": "",
+      "params_schema": {
+        "properties": {
+          "site_id": {
+            "description": "Site id from a previous list_sites/add_site call",
+            "title": "Site Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "site_id"
+        ],
+        "title": "RemoveSiteParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "description": "One registered site. `connector_app`/`connector_ref` are set only\nwhen a real connector extension (e.g. wp-site-connector) is actually\ndriving this site; a manually-added site with platform=\"none\" or a\nnot-yet-connected platform choice leaves both blank.",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Id"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "kind": {
+            "default": "",
+            "title": "Kind",
+            "type": "string"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "status": {
+            "default": "manual",
+            "title": "Status",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Url"
+          },
+          "domain": {
+            "default": "",
+            "title": "Domain",
+            "type": "string"
+          },
+          "platform": {
+            "default": "none",
+            "title": "Platform",
+            "type": "string"
+          },
+          "connector_app": {
+            "default": "",
+            "title": "Connector App",
+            "type": "string"
+          },
+          "connector_ref": {
+            "default": "",
+            "title": "Connector Ref",
+            "type": "string"
+          },
+          "notes": {
+            "default": "",
+            "title": "Notes",
+            "type": "string"
+          },
+          "created_at": {
+            "default": "",
+            "title": "Created At",
+            "type": "string"
+          },
+          "updated_at": {
+            "default": "",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "Site",
+        "type": "object",
+        "x-sdl": "entity"
+      },
+      "event": "sites-registry.remove_site",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "sites-registry"
+    }
+  ],
+  "signals": [],
+  "schedules": [],
+  "required_scopes": [],
+  "icon_size_bytes": 472,
+  "exposed": [
+    {
+      "name": "upsert_site",
+      "action_type": "write"
+    }
+  ],
+  "lifecycle": {
+    "health_check": {
+      "interval_sec": 60
+    }
+  },
+  "panels": [
+    {
+      "panel_id": "sites",
+      "slot": "left",
+      "title": "Sites Registry",
+      "tree": {},
+      "icon": "🗂️",
+      "refresh": "manual",
+      "center_overlay": false,
+      "default_width": 320,
+      "min_width": 260,
+      "max_width": 460
+    }
+  ]
+}
