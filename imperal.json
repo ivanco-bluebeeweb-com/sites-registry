@@ -919,10 +919,6 @@
   "icon_size_bytes": 472,
   "exposed": [
     {
-      "name": "sync_connected_sites_ipc",
-      "action_type": "write"
-    },
-    {
       "name": "upsert_site",
       "action_type": "write"
     }

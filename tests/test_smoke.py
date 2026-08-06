@@ -226,33 +226,3 @@ async def test_sync_connected_sites_surfaces_ipc_failure():
     ctx.extensions.register("wp-site-connector", "list_connected_sites", _boom)
     result = await h.sync_connected_sites(ctx, SyncConnectedSitesParams(source="wordpress"))
     assert result.status != "success"
-
-
-@pytest.mark.asyncio
-async def test_expose_sync_connected_sites_ipc_is_the_surface_wp_hub_actually_calls():
-    """ctx.extensions.call only ever reaches @ext.expose surfaces, never
-    @chat.function ones -- this is what WP Hub's sidebar button really hits."""
-    ctx = MockContext()
-    ctx.extensions.register(
-        "wp-site-connector", "list_connected_sites",
-        lambda **kw: [{"site_id": "climtec-md", "name": "climtec.md", "url": "https://climtec.md", "status": "connected"}],
-    )
-    result = await h.expose_sync_connected_sites(ctx, source="wordpress")
-    assert isinstance(result, list)
-    assert len(result) == 1
-    assert result[0]["domain"] == "climtec.md"
-
-    listed = await h.list_sites(ctx, ListSitesParams())
-    assert any(s.domain == "climtec.md" for s in listed.data.items)
-
-
-@pytest.mark.asyncio
-async def test_expose_sync_connected_sites_ipc_returns_empty_list_on_failure():
-    ctx = MockContext()
-
-    def _boom(**kw):
-        raise RuntimeError("wp-site-connector unreachable")
-
-    ctx.extensions.register("wp-site-connector", "list_connected_sites", _boom)
-    result = await h.expose_sync_connected_sites(ctx, source="wordpress")
-    assert result == []

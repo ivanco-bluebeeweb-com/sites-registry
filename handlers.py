@@ -163,25 +163,6 @@ async def sync_connected_sites(ctx, params: SyncConnectedSitesParams) -> ActionR
         refresh_panels=["sites"])
 
 
-@ext.expose("sync_connected_sites_ipc", action_type="write")
-async def expose_sync_connected_sites(ctx, *, source: str = "wordpress", **kwargs) -> list[dict]:
-    """Inter-extension IPC surface: this is what WP Hub's sidebar sync button
-    actually calls (ctx.extensions.call routes to @ext.expose surfaces, never
-    to @chat.function ones -- sync_connected_sites above is the LLM/manual
-    version of the exact same core logic).
-
-    Returns a plain list of dicts (never surfaced to the LLM/user directly):
-    [{"id", "domain", "name", "status"}, ...]
-    """
-    result = await _do_sync_connected_sites(ctx, source)
-    if not result.get("ok"):
-        return []
-    return [
-        {"id": s.id, "domain": s.domain, "name": s.title, "status": s.status}
-        for s in result["items"]
-    ]
-
-
 @chat.function(
     "list_sites",
     description="List every registered site, optionally filtered by platform or status.",
