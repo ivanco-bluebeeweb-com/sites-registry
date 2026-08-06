@@ -91,34 +91,21 @@ async def add_site(ctx, params: AddSiteParams) -> ActionResult:
         refresh_panels=["sites"])
 
 
-@chat.function(
-    "sync_connected_sites",
-    description=(
-        "Pull sites that are ALREADY connected in a platform connector (WordPress Hub today) into "
-        "the registry. Fixes sites connected before Sites Registry existed, or any time the two "
-        "drift out of sync -- safe to run any time, matches by domain, fills in platform/connector "
-        "info, never touches notes."
-    ),
-    action_type="write",
-    data_model=SiteList,
-    effects=["site.sync"],
-    event="sites-registry.sync_connected_sites",
-)
-async def sync_connected_sites(ctx, params: SyncConnectedSitesParams) -> ActionResult:
-    """Backfill/refresh registry entries from an already-connected platform connector."""
-    source = params.source or "wordpress"
+async def _do_sync_connected_sites(ctx, source: str) -> dict:
+    """Shared core: pulls a connector's connected sites via IPC and backfills/
+    refreshes matching registry records by domain. Used by both the chat tool
+    (LLM/manual call) and the sync_connected_sites_ipc @ext.expose surface
+    (what WP Hub's sidebar button actually calls -- ctx.extensions.call only
+    ever reaches @ext.expose surfaces, never @chat.function ones)."""
     if source not in _PLATFORM_CONNECT_IPC:
-        return ActionResult.error(
-            f"Unknown source '{source}'. Known: {', '.join(_PLATFORM_CONNECT_IPC)}", retryable=False)
+        return {"ok": False, "error": f"Unknown source '{source}'. Known: {', '.join(_PLATFORM_CONNECT_IPC)}"}
     target_app, _connect_method = _PLATFORM_CONNECT_IPC[source]
 
     try:
         rows = await ctx.extensions.call(target_app, "list_connected_sites")
     except Exception as e:
         await ctx.log(f"sync_connected_sites: IPC call to {target_app} failed: {e}", level="error")
-        return ActionResult.error(
-            f"Could not reach {target_app} to read its connected sites -- try again shortly.",
-            retryable=True)
+        return {"ok": False, "error": f"Could not reach {target_app} to read its connected sites.", "retryable": True}
 
     now = now_iso()
     synced: list[Site] = []
@@ -148,10 +135,51 @@ async def sync_connected_sites(ctx, params: SyncConnectedSitesParams) -> ActionR
             doc = await ctx.store.create(storage.SITES_COLLECTION, record)
             synced.append(to_site(record | {"id": doc.id}))
 
+    return {"ok": True, "target_app": target_app, "items": synced}
+
+
+@chat.function(
+    "sync_connected_sites",
+    description=(
+        "Pull sites that are ALREADY connected in a platform connector (WordPress Hub today) into "
+        "the registry. Fixes sites connected before Sites Registry existed, or any time the two "
+        "drift out of sync -- safe to run any time, matches by domain, fills in platform/connector "
+        "info, never touches notes."
+    ),
+    action_type="write",
+    data_model=SiteList,
+    effects=["site.sync"],
+    event="sites-registry.sync_connected_sites",
+)
+async def sync_connected_sites(ctx, params: SyncConnectedSitesParams) -> ActionResult:
+    """Backfill/refresh registry entries from an already-connected platform connector."""
+    result = await _do_sync_connected_sites(ctx, params.source or "wordpress")
+    if not result.get("ok"):
+        return ActionResult.error(result.get("error", "Sync failed."), retryable=bool(result.get("retryable")))
+    synced = result["items"]
     return ActionResult.success(
         SiteList(items=synced, total=len(synced)),
-        summary=f"Synced {len(synced)} site(s) from {target_app}.",
+        summary=f"Synced {len(synced)} site(s) from {result['target_app']}.",
         refresh_panels=["sites"])
+
+
+@ext.expose("sync_connected_sites_ipc", action_type="write")
+async def expose_sync_connected_sites(ctx, *, source: str = "wordpress", **kwargs) -> list[dict]:
+    """Inter-extension IPC surface: this is what WP Hub's sidebar sync button
+    actually calls (ctx.extensions.call routes to @ext.expose surfaces, never
+    to @chat.function ones -- sync_connected_sites above is the LLM/manual
+    version of the exact same core logic).
+
+    Returns a plain list of dicts (never surfaced to the LLM/user directly):
+    [{"id", "domain", "name", "status"}, ...]
+    """
+    result = await _do_sync_connected_sites(ctx, source)
+    if not result.get("ok"):
+        return []
+    return [
+        {"id": s.id, "domain": s.domain, "name": s.title, "status": s.status}
+        for s in result["items"]
+    ]
 
 
 @chat.function(
