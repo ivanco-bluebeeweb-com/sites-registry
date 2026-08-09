@@ -17,7 +17,7 @@ import storage
 # new platform connector later (e.g. Shopify) means adding one line here --
 # no other code in this file changes.
 _PLATFORM_CONNECT_IPC = {
-    "wordpress": ("wp-site-connector", "connect_site_ipc"),
+    "wordpress": ("wordpress-hub", "connect_site_ipc"),
 }
 
 
@@ -65,7 +65,7 @@ async def add_site(ctx, params: AddSiteParams) -> ActionResult:
                 url=params.url, username=params.username, app_password=params.app_password,
             )
         except Exception as e:
-            await ctx.log(f"add_site: wp-site-connector IPC call failed: {e}", level="error")
+            await ctx.log(f"add_site: wordpress-hub IPC call failed: {e}", level="error")
             return ActionResult.error(
                 "Could not reach WordPress Hub to connect this site -- try again shortly.",
                 retryable=True)

@@ -20,7 +20,7 @@ PLATFORM_CHOICES = ("wordpress", "shopify", "none", "other")
 
 class Site(sdl.Entity):
     """One registered site. `connector_app`/`connector_ref` are set only
-    when a real connector extension (e.g. wp-site-connector) is actually
+    when a real connector extension (e.g. wordpress-hub) is actually
     driving this site; a manually-added site with platform="none" or a
     not-yet-connected platform choice leaves both blank."""
     domain: str = ""
