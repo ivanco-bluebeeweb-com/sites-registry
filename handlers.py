@@ -222,6 +222,26 @@ async def remove_site(ctx, params: RemoveSiteParams) -> ActionResult:
         summary="Site removed from the registry.", refresh_panels=["sites"])
 
 
+@ext.expose("ping", action_type="read")
+async def expose_ping(ctx, **kwargs) -> dict:
+    """Read-only inter-extension IPC surface with no side effects at all --
+    doesn't touch ctx.store, doesn't need a populated ctx.user. Exists purely
+    so another extension (WordPress Hub's sidebar today) can cheaply detect
+    "is Sites Registry installed and reachable for this user right now" and
+    conditionally show/hide UI, without the risk a write call (upsert_site)
+    would carry if used just as an installed-check, and without depending on
+    the panel-render ctx.user population gap already seen with other IPC
+    reads made during a panel render (see Content Strategy Hub's
+    _cache_connected_sites for that same platform-side gap).
+
+    Returns a plain dict (never surfaced to the LLM/user directly):
+    {"ok": True}. A caller that gets an exception instead (NotFoundError —
+    app not installed/enabled, AuthError, etc.) should treat that as "not
+    available" -- ctx.extensions.call has no separate is_installed() API.
+    """
+    return {"ok": True}
+
+
 @ext.expose("upsert_site", action_type="write")
 async def expose_upsert_site(
     ctx, *, domain: str, name: str = "", platform: str = "other",

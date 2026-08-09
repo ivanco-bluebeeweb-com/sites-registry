@@ -19,6 +19,16 @@ from schemas import (
 
 
 @pytest.mark.asyncio
+async def test_expose_ping_returns_ok_true():
+    """The read-only ping IPC surface WordPress Hub uses to detect whether
+    Sites Registry is installed -- must never touch ctx.store and must
+    always answer {"ok": True} for any reachable caller."""
+    ctx = MockContext()
+    result = await h.expose_ping(ctx)
+    assert result == {"ok": True}
+
+
+@pytest.mark.asyncio
 async def test_add_site_manual_platform_none():
     ctx = MockContext()
     result = await h.add_site(ctx, AddSiteParams(domain="example.com", name="Example"))

@@ -94,7 +94,7 @@
         "type": "object"
       },
       "return_schema": {
-        "description": "One registered site. `connector_app`/`connector_ref` are set only\nwhen a real connector extension (e.g. wp-site-connector) is actually\ndriving this site; a manually-added site with platform=\"none\" or a\nnot-yet-connected platform choice leaves both blank.",
+        "description": "One registered site. `connector_app`/`connector_ref` are set only\nwhen a real connector extension (e.g. wordpress-hub) is actually\ndriving this site; a manually-added site with platform=\"none\" or a\nnot-yet-connected platform choice leaves both blank.",
         "properties": {
           "id": {
             "anyOf": [
@@ -231,7 +231,7 @@
       "return_schema": {
         "$defs": {
           "Site": {
-            "description": "One registered site. `connector_app`/`connector_ref` are set only\nwhen a real connector extension (e.g. wp-site-connector) is actually\ndriving this site; a manually-added site with platform=\"none\" or a\nnot-yet-connected platform choice leaves both blank.",
+            "description": "One registered site. `connector_app`/`connector_ref` are set only\nwhen a real connector extension (e.g. wordpress-hub) is actually\ndriving this site; a manually-added site with platform=\"none\" or a\nnot-yet-connected platform choice leaves both blank.",
             "properties": {
               "id": {
                 "anyOf": [
@@ -440,7 +440,7 @@
       "return_schema": {
         "$defs": {
           "Site": {
-            "description": "One registered site. `connector_app`/`connector_ref` are set only\nwhen a real connector extension (e.g. wp-site-connector) is actually\ndriving this site; a manually-added site with platform=\"none\" or a\nnot-yet-connected platform choice leaves both blank.",
+            "description": "One registered site. `connector_app`/`connector_ref` are set only\nwhen a real connector extension (e.g. wordpress-hub) is actually\ndriving this site; a manually-added site with platform=\"none\" or a\nnot-yet-connected platform choice leaves both blank.",
             "properties": {
               "id": {
                 "anyOf": [
@@ -662,7 +662,7 @@
         "type": "object"
       },
       "return_schema": {
-        "description": "One registered site. `connector_app`/`connector_ref` are set only\nwhen a real connector extension (e.g. wp-site-connector) is actually\ndriving this site; a manually-added site with platform=\"none\" or a\nnot-yet-connected platform choice leaves both blank.",
+        "description": "One registered site. `connector_app`/`connector_ref` are set only\nwhen a real connector extension (e.g. wordpress-hub) is actually\ndriving this site; a manually-added site with platform=\"none\" or a\nnot-yet-connected platform choice leaves both blank.",
         "properties": {
           "id": {
             "anyOf": [
@@ -799,7 +799,7 @@
         "type": "object"
       },
       "return_schema": {
-        "description": "One registered site. `connector_app`/`connector_ref` are set only\nwhen a real connector extension (e.g. wp-site-connector) is actually\ndriving this site; a manually-added site with platform=\"none\" or a\nnot-yet-connected platform choice leaves both blank.",
+        "description": "One registered site. `connector_app`/`connector_ref` are set only\nwhen a real connector extension (e.g. wordpress-hub) is actually\ndriving this site; a manually-added site with platform=\"none\" or a\nnot-yet-connected platform choice leaves both blank.",
         "properties": {
           "id": {
             "anyOf": [
@@ -918,6 +918,10 @@
   "required_scopes": [],
   "icon_size_bytes": 472,
   "exposed": [
+    {
+      "name": "ping",
+      "action_type": "read"
+    },
     {
       "name": "upsert_site",
       "action_type": "write"
