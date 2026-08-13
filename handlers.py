@@ -20,6 +20,39 @@ _PLATFORM_CONNECT_IPC = {
     "wordpress": ("wordpress-hub", "connect_site_ipc"),
 }
 
+# Every app that owns a "projects" concept keyed by site/domain, and the
+# idempotent @ext.expose surface each one offers to register a site there
+# automatically. Adding a future app here is one line -- no other code in
+# this file changes. Per explicit platform rule: any site that lands in
+# Sites Registry (manually, via add_site, or via a connector's upsert_site/
+# sync_connected_sites) must show up as an existing project everywhere else
+# without the user re-adding it four more times.
+_PROJECT_FANOUT_TARGETS: list[tuple[str, str]] = [
+    ("content-strategy-app", "register_project"),
+    ("brand-strategy-hub", "register_project"),
+    ("media-studio", "register_project"),
+    ("seo-audit-engine", "register_known_site"),
+]
+
+
+async def _fanout_new_site(ctx, *, domain: str, name: str) -> None:
+    """Best-effort: tell every downstream app with a 'projects' concept about
+    a newly registered site, so it appears there as an existing project.
+
+    Deliberately swallows every failure per target -- a downstream app being
+    uninstalled, unreachable, or erroring must never block or fail the one
+    write the caller actually asked for (registering the site here). Each
+    target's own surface is idempotent (create-if-missing), so calling this
+    more than once for the same domain is always safe.
+    """
+    for app_id, method in _PROJECT_FANOUT_TARGETS:
+        try:
+            await ctx.extensions.call(
+                app_id, method, site_id=domain, domain=domain, name=name or domain,
+            )
+        except Exception as e:
+            await ctx.log(f"_fanout_new_site: {app_id}.{method} skipped: {e}", level="info")
+
 
 @chat.function(
     "add_site",
@@ -86,6 +119,7 @@ async def add_site(ctx, params: AddSiteParams) -> ActionResult:
     }
     doc = await ctx.store.create(storage.SITES_COLLECTION, record)
     site = to_site(record | {"id": doc.id})
+    await _fanout_new_site(ctx, domain=domain, name=name)
     return ActionResult.success(
         site, summary=f"Registered '{domain}'" + (" and connected it in WordPress Hub" if status == "connected" else ""),
         refresh_panels=["sites"])
@@ -134,6 +168,7 @@ async def _do_sync_connected_sites(ctx, source: str) -> dict:
             }
             doc = await ctx.store.create(storage.SITES_COLLECTION, record)
             synced.append(to_site(record | {"id": doc.id}))
+            await _fanout_new_site(ctx, domain=domain, name=record["name"])
 
     return {"ok": True, "target_app": target_app, "items": synced}
 
@@ -277,4 +312,5 @@ async def expose_upsert_site(
         "status": status, "notes": "", "created_at": now, "updated_at": now,
     }
     doc = await ctx.store.create(storage.SITES_COLLECTION, record)
+    await _fanout_new_site(ctx, domain=d, name=record["name"])
     return {"ok": True, "site_id": doc.id}

@@ -236,3 +236,88 @@ async def test_sync_connected_sites_surfaces_ipc_failure():
     ctx.extensions.register("wordpress-hub", "list_connected_sites", _boom)
     result = await h.sync_connected_sites(ctx, SyncConnectedSitesParams(source="wordpress"))
     assert result.status != "success"
+
+
+# --- cross-app "new site -> existing project" fan-out ------------------
+
+def _register_fanout_spies(ctx) -> dict[str, list[dict]]:
+    """Register a spy handler for every fan-out target and return the
+    dict of calls seen, keyed by app_id, so a test can assert on it."""
+    calls: dict[str, list[dict]] = {}
+    for app_id, method in h._PROJECT_FANOUT_TARGETS:
+        calls[app_id] = []
+
+        def _spy(app_id=app_id, **kw):
+            calls[app_id].append(kw)
+            return {"ok": True, "created": True}
+
+        ctx.extensions.register(app_id, method, _spy)
+    return calls
+
+
+@pytest.mark.asyncio
+async def test_add_site_fans_out_to_every_downstream_project_app():
+    """The new platform rule: a site added here must appear as an existing
+    project in Content Strategy, Brand Strategy, Media Hub and SEO Audit
+    Engine -- without the user re-adding it in each one."""
+    ctx = MockContext()
+    calls = _register_fanout_spies(ctx)
+    result = await h.add_site(ctx, AddSiteParams(domain="freshsite.com", name="Fresh Site"))
+    assert result.status == "success"
+    for app_id, hits in calls.items():
+        assert len(hits) == 1, f"{app_id} should have been notified exactly once"
+        assert hits[0]["domain"] == "freshsite.com"
+
+
+@pytest.mark.asyncio
+async def test_add_site_fanout_failure_does_not_fail_the_registration():
+    """A downstream app being uninstalled/unreachable must never block the
+    one write the caller actually asked for."""
+    ctx = MockContext()
+
+    def _boom(**kw):
+        raise RuntimeError("content-strategy-app unreachable")
+
+    ctx.extensions.register("content-strategy-app", "register_project", _boom)
+    result = await h.add_site(ctx, AddSiteParams(domain="freshsite.com"))
+    assert result.status == "success"
+
+
+@pytest.mark.asyncio
+async def test_upsert_site_ipc_fans_out_on_new_record_only():
+    """A brand-new upsert (WordPress Hub's own connect_site push) fans out;
+    a later status-only update to the SAME domain must not fan out again --
+    downstream apps already know about it."""
+    ctx = MockContext()
+    calls = _register_fanout_spies(ctx)
+    await h.expose_upsert_site(
+        ctx, domain="pushed.com", name="Pushed Site", platform="wordpress",
+        connector_app="wordpress-hub", connector_ref="pushed-com", status="connected",
+    )
+    for app_id, hits in calls.items():
+        assert len(hits) == 1
+
+    await h.expose_upsert_site(
+        ctx, domain="pushed.com", name="Pushed Site", platform="wordpress",
+        connector_app="wordpress-hub", connector_ref="pushed-com", status="disconnected",
+    )
+    for app_id, hits in calls.items():
+        assert len(hits) == 1, f"{app_id} should NOT be notified again on a plain status update"
+
+
+@pytest.mark.asyncio
+async def test_sync_connected_sites_fans_out_only_for_newly_backfilled_sites():
+    """Backfilling sites that predate the registry must ALSO fan out --
+    those sites never triggered add_site or upsert_site's own fan-out."""
+    ctx = MockContext()
+    calls = _register_fanout_spies(ctx)
+    ctx.extensions.register(
+        "wordpress-hub", "list_connected_sites",
+        lambda **kw: [
+            {"site_id": "climtec-md", "name": "climtec.md", "url": "https://climtec.md", "status": "connected"},
+        ],
+    )
+    await h.sync_connected_sites(ctx, SyncConnectedSitesParams(source="wordpress"))
+    for app_id, hits in calls.items():
+        assert len(hits) == 1
+        assert hits[0]["domain"] == "climtec.md"
