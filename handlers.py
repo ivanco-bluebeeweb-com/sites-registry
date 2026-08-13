@@ -8,6 +8,7 @@ from imperal_sdk import ActionResult
 from schemas import (
     Site, SiteList, AddSiteParams, ListSitesParams, UpdateSiteParams,
     RemoveSiteParams, PLATFORM_CHOICES, SyncConnectedSitesParams,
+    BackfillProjectFanoutParams,
 )
 from converters import now_iso, normalize_domain, site_id_from_domain, to_site
 import storage
@@ -52,6 +53,33 @@ async def _fanout_new_site(ctx, *, domain: str, name: str) -> None:
             )
         except Exception as e:
             await ctx.log(f"_fanout_new_site: {app_id}.{method} skipped: {e}", level="info")
+
+
+@chat.function(
+    "backfill_project_fanout",
+    description=(
+        "One-time catch-up: re-run the new-site fan-out for EVERY site already "
+        "registered here, regardless of when or how it was added. Use this once "
+        "after the fan-out rule shipped, so sites that predate it also appear as "
+        "existing projects in Content Strategy, Brand Strategy, Media Hub and "
+        "SEO Audit Engine. Safe to run more than once -- each downstream app's "
+        "own register surface is idempotent, so an already-known site is left "
+        "untouched."
+    ),
+    action_type="write",
+    data_model=SiteList,
+    effects=["site.fanout_backfill"],
+    event="sites-registry.backfill_project_fanout",
+)
+async def backfill_project_fanout(ctx, params: BackfillProjectFanoutParams) -> ActionResult:
+    """Re-run _fanout_new_site for every existing registry record."""
+    rows = await storage.list_records(ctx)
+    for r in rows:
+        await _fanout_new_site(ctx, domain=r.get("domain", ""), name=r.get("name") or r.get("domain", ""))
+    items = [to_site(r) for r in rows]
+    return ActionResult.success(
+        SiteList(items=items, total=len(items)),
+        summary=f"Re-announced {len(items)} site(s) to Content Strategy, Brand Strategy, Media Hub and SEO Audit Engine.")
 
 
 @chat.function(

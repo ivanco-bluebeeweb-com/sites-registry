@@ -14,7 +14,7 @@ from imperal_sdk.testing import MockContext
 import handlers as h
 from schemas import (
     AddSiteParams, ListSitesParams, UpdateSiteParams, RemoveSiteParams,
-    SyncConnectedSitesParams,
+    SyncConnectedSitesParams, BackfillProjectFanoutParams,
 )
 
 
@@ -281,6 +281,40 @@ async def test_add_site_fanout_failure_does_not_fail_the_registration():
     ctx.extensions.register("content-strategy-app", "register_project", _boom)
     result = await h.add_site(ctx, AddSiteParams(domain="freshsite.com"))
     assert result.status == "success"
+
+
+@pytest.mark.asyncio
+async def test_backfill_project_fanout_re_announces_every_existing_site():
+    """Sites registered BEFORE the fan-out rule shipped never triggered a
+    downstream call at creation time -- backfill_project_fanout is the
+    one-time catch-up that announces them now."""
+    ctx = MockContext()
+    # Two sites created with the spy NOT yet registered, mimicking records
+    # that predate this feature (their own creation never fanned out).
+    await h.add_site(ctx, AddSiteParams(domain="old-one.com"))
+    await h.add_site(ctx, AddSiteParams(domain="old-two.com"))
+
+    calls = _register_fanout_spies(ctx)
+    result = await h.backfill_project_fanout(ctx, BackfillProjectFanoutParams())
+    assert result.status == "success"
+    for app_id, hits in calls.items():
+        domains = {c["domain"] for c in hits}
+        assert domains == {"old-one.com", "old-two.com"}, f"{app_id} missing a backfilled domain"
+
+
+@pytest.mark.asyncio
+async def test_backfill_project_fanout_is_safe_to_run_twice():
+    """Downstream register surfaces are idempotent, so running the backfill
+    again must not error and must still report every site."""
+    ctx = MockContext()
+    await h.add_site(ctx, AddSiteParams(domain="old-one.com"))
+    calls = _register_fanout_spies(ctx)
+
+    await h.backfill_project_fanout(ctx, BackfillProjectFanoutParams())
+    result = await h.backfill_project_fanout(ctx, BackfillProjectFanoutParams())
+    assert result.status == "success"
+    for app_id, hits in calls.items():
+        assert len(hits) == 2, f"{app_id} should have been called once per backfill run"
 
 
 @pytest.mark.asyncio

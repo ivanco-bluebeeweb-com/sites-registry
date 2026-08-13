@@ -79,3 +79,8 @@ class SyncConnectedSitesParams(BaseModel):
         default="wordpress",
         description="Which connector to pull already-connected sites from. Only 'wordpress' exists today.",
     )
+
+
+class BackfillProjectFanoutParams(BaseModel):
+    """No inputs needed -- re-announces every existing registry record."""
+    pass
