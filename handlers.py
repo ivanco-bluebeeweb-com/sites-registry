@@ -305,6 +305,25 @@ async def expose_ping(ctx, **kwargs) -> dict:
     return {"ok": True}
 
 
+@ext.expose("list_connected_sites", action_type="read")
+async def expose_list_connected_sites(ctx, **kwargs):
+    """Inter-extension IPC surface (ctx.extensions.call) for apps that want a
+    platform-agnostic site list -- today Page Speed Insights, which prefers
+    reading straight from the registry over asking WordPress Hub directly
+    (a site here may not even be WordPress). Same shape as WordPress Hub's
+    own list_connected_sites so callers can treat either provider identically.
+
+    Returns plain dicts (never surfaced to the LLM/user directly):
+    [{"site_id", "name", "url", "status"}, ...]
+    """
+    rows = await storage.list_records(ctx)
+    return [
+        {"site_id": r["id"], "name": r.get("name") or r.get("domain", r["id"]),
+         "url": r.get("domain", ""), "status": r.get("status", "manual")}
+        for r in rows
+    ]
+
+
 @ext.expose("upsert_site", action_type="write")
 async def expose_upsert_site(
     ctx, *, domain: str, name: str = "", platform: str = "other",

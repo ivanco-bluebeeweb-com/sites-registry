@@ -29,6 +29,20 @@ async def test_expose_ping_returns_ok_true():
 
 
 @pytest.mark.asyncio
+async def test_expose_list_connected_sites_returns_registry_rows():
+    """The list_connected_sites IPC surface Page Speed Insights (and any
+    future site-provider consumer) reads from -- must return every
+    registered site in the {"site_id", "name", "url", "status"} shape."""
+    ctx = MockContext()
+    await h.add_site(ctx, AddSiteParams(domain="example.com", name="Example"))
+    rows = await h.expose_list_connected_sites(ctx)
+    assert len(rows) == 1
+    assert rows[0]["url"] == "example.com"
+    assert rows[0]["status"] == "manual"
+    assert "site_id" in rows[0] and "name" in rows[0]
+
+
+@pytest.mark.asyncio
 async def test_add_site_manual_platform_none():
     ctx = MockContext()
     result = await h.add_site(ctx, AddSiteParams(domain="example.com", name="Example"))
