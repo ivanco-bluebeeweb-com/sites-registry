@@ -1,6 +1,6 @@
 {
   "manifest_schema_version": 3,
-  "sdk_version": "5.9.13",
+  "sdk_version": "5.9.19",
   "app_id": "sites-registry",
   "version": "0.1.0",
   "name": "Sites Registry",
@@ -13,6 +13,183 @@
     "sites:write"
   ],
   "tools": [
+    {
+      "name": "backfill_project_fanout",
+      "description": "One-time catch-up: re-run the new-site fan-out for EVERY site already registered here, regardless of when or how it was added. Use this once after the fan-out rule shipped, so sites that predate it also appear as existing projects in Content Strategy, Brand Strategy, Media Hub and SEO Audit Engine. Safe to run more than once -- each downstream app's own register surface is idempotent, so an already-known site is left untouched.",
+      "action_type": "write",
+      "chain_callable": true,
+      "effects": [
+        "site.fanout_backfill"
+      ],
+      "id_projection": "",
+      "params_schema": {
+        "description": "No inputs needed -- re-announces every existing registry record.",
+        "properties": {},
+        "title": "BackfillProjectFanoutParams",
+        "type": "object"
+      },
+      "return_schema": {
+        "$defs": {
+          "Site": {
+            "description": "One registered site. `connector_app`/`connector_ref` are set only\nwhen a real connector extension (e.g. wordpress-hub) is actually\ndriving this site; a manually-added site with platform=\"none\" or a\nnot-yet-connected platform choice leaves both blank.",
+            "properties": {
+              "id": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "title": "Id"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              },
+              "kind": {
+                "default": "",
+                "title": "Kind",
+                "type": "string"
+              },
+              "subtitle": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Subtitle"
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Description"
+              },
+              "status": {
+                "default": "manual",
+                "title": "Status",
+                "type": "string"
+              },
+              "url": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Url"
+              },
+              "domain": {
+                "default": "",
+                "title": "Domain",
+                "type": "string"
+              },
+              "platform": {
+                "default": "none",
+                "title": "Platform",
+                "type": "string"
+              },
+              "connector_app": {
+                "default": "",
+                "title": "Connector App",
+                "type": "string"
+              },
+              "connector_ref": {
+                "default": "",
+                "title": "Connector Ref",
+                "type": "string"
+              },
+              "notes": {
+                "default": "",
+                "title": "Notes",
+                "type": "string"
+              },
+              "created_at": {
+                "default": "",
+                "title": "Created At",
+                "type": "string"
+              },
+              "updated_at": {
+                "default": "",
+                "title": "Updated At",
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "title"
+            ],
+            "title": "Site",
+            "type": "object",
+            "x-sdl": "entity"
+          }
+        },
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/$defs/Site"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Total"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Page"
+          },
+          "has_more": {
+            "default": false,
+            "title": "Has More",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "SiteList",
+        "type": "object",
+        "x-sdl": "entity-list"
+      },
+      "event": "sites-registry.backfill_project_fanout",
+      "background": false,
+      "long_running": false,
+      "scopes": [],
+      "owner_chat_tool": "sites-registry"
+    },
     {
       "name": "add_site",
       "description": "Register a site in the platform-agnostic Sites Registry. Works for any platform, or none at all. Choosing platform='wordpress' AND supplying url/username/app_password connects it live in WordPress Hub in this same call -- not a separate step.",
@@ -920,6 +1097,10 @@
   "exposed": [
     {
       "name": "ping",
+      "action_type": "read"
+    },
+    {
+      "name": "list_connected_sites",
       "action_type": "read"
     },
     {
