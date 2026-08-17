@@ -32,6 +32,7 @@ _PROJECT_FANOUT_TARGETS: list[tuple[str, str]] = [
     ("content-strategy-app", "register_project"),
     ("brand-strategy-hub", "register_project"),
     ("media-studio", "register_project"),
+    ("sales-strategy-hub", "register_project"),
     ("seo-audit-engine", "register_known_site"),
 ]
 
